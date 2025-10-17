@@ -47,6 +47,8 @@ app.use("/api/guided-audio", require("./routes/guidedAudioRoutes"));
 app.use("/api/guided-meditations", require("./routes/guidedMeditationRoutes"));
 app.use("/api/guided-visualizations", require("./routes/guidedVisualizationRoutes"));
 app.use("/api/notifications", require("./routes/notificationRoutes"));
+app.use("/api/combined", require("./routes/combinedRoutes"));
+
 app.get('/api/today', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   

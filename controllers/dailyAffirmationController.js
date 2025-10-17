@@ -27,3 +27,14 @@ exports.updateAffirmation = async (req, res, next) => {
     next(err);
   }
 };
+
+
+exports.deleteAffirmation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await firebase.deleteItem(COLLECTION, id); // Fixed: use firebase.deleteItem
+    res.json({ message: "Affirmation deleted successfully", ...result });
+  } catch (error) {
+    next(error);
+  }
+};

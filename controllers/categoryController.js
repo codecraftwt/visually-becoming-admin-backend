@@ -28,3 +28,13 @@ exports.updateCategory = async (req, res, next) => {
     next(err);
   }
 };
+
+
+exports.deleteCategory = async (req, res, next) => {
+  try {
+    const deleted = await firebase.deleteItem(COLLECTION, req.params.id);
+    res.json({ message: "Category deleted successfully", deleted });
+  } catch (err) {
+    next(err);
+  }
+};
