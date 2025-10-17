@@ -1,24 +1,3 @@
-// const firebaseService = require("../services/firebaseService");
-
-// const COLLECTION = "categories";
-
-// exports.getAllCategories = async (req, res) => {
-//   const data = await firebaseService.getAll(COLLECTION);
-//   res.json(data);
-// };
-
-// exports.createCategory = async (req, res) => {
-//   const category = await firebaseService.create(COLLECTION, req.body);
-//   res.json(category);
-// };
-
-// exports.updateCategory = async (req, res) => {
-//   const { id } = req.params;
-//   const category = await firebaseService.update(COLLECTION, id, req.body);
-//   res.json(category);
-// };
-
-
 const firebase = require("../services/firebaseService");
 
 const COLLECTION = "admin_categories";
