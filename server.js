@@ -43,6 +43,7 @@ let idCounter = 1;
 
 // Routes
 app.use("/api/categories", require("./routes/categoryRoutes"));
+app.use("/api/audio-categories", require("./routes/audioCategoryRoutes"));
 app.use("/api/daily-affirmations", require("./routes/dailyAffirmationRoutes"));
 app.use("/api/guided-audio", require("./routes/guidedAudioRoutes"));
 app.use("/api/guided-meditations", require("./routes/guidedMeditationRoutes"));

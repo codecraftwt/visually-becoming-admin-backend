@@ -1,26 +1,18 @@
 
 // backend\config\firebase.js
-// const admin = require("firebase-admin");
-// const serviceAccount = require("../serviceAccountKey.json"); // download from Firebase console
-
-// admin.initializeApp({
-//   credential: admin.credential.cert(serviceAccount),
-// });
-
-// const db = admin.firestore();
-// module.exports = db;
-
-
 const admin = require("firebase-admin");
+const serviceAccount = require("../serviceAccountKey.json");
+
+// Firebase project configuration (server-side only needs projectId and storageBucket)
+const firebaseConfig = {
+  projectId: "affirm-2722c",
+  storageBucket: "affirm-2722c.appspot.com",
+};
 
 if (!admin.apps.length) {
   admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    }),
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: firebaseConfig.storageBucket,
   });
 }
 
