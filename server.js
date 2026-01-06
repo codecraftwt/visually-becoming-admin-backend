@@ -69,9 +69,15 @@ app.get('/api/today', (req, res) => {
 
 app.use(errorHandler);
 
+// Health check endpoint
+app.get("/", (req, res) => {
+  res.json({ message: "Visually Becoming Admin Backend API", status: "running" });
+});
+
 if (process.env.NODE_ENV !== "production") {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
+// Export for Vercel serverless functions
 module.exports = app;
