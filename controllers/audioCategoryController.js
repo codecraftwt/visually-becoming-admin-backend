@@ -1,11 +1,23 @@
 const firebase = require("../services/firebaseService");
 
 const COLLECTION = "admin_audio_categories";
+const CONTENT_COLLECTION = "admin_guidedAudio";
 
 exports.getAudioCategories = async (req, res, next) => {
   try {
-    const data = await firebase.getAll(COLLECTION);
-    res.json(data);
+    const categories = await firebase.getAll(COLLECTION);
+    const contentItems = await firebase.getAll(CONTENT_COLLECTION);
+    
+    // Add item count to each category
+    const categoriesWithCounts = categories.map(category => {
+      const itemCount = contentItems.filter(item => item.categoryId === category.id).length;
+      return {
+        ...category,
+        itemCount
+      };
+    });
+    
+    res.json(categoriesWithCounts);
   } catch (err) {
     next(err);
   }

@@ -51,6 +51,7 @@ app.use("/api/guided-visualizations", require("./routes/guidedVisualizationRoute
 app.use("/api/notifications", require("./routes/notificationRoutes"));
 app.use("/api/combined", require("./routes/combinedRoutes"));
 
+// Today's content route (must be before generic :contentType route)
 app.get('/api/today', (req, res) => {
   const today = new Date().toISOString().split('T')[0];
   
@@ -66,6 +67,10 @@ app.get('/api/today', (req, res) => {
   
   res.json(todayContent);
 });
+
+// Generic guided content routes (supports: audio, meditation, visualization, etc.)
+// Must be after specific routes like /api/today
+app.use("/api/:contentType", require("./routes/guidedContentRoutes"));
 
 app.use(errorHandler);
 
