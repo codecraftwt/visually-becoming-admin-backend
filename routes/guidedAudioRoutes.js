@@ -15,7 +15,7 @@ const multer = require("multer");
 const storage = multer.memoryStorage();
 const uploadMultiple = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit per file
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit per file
   fileFilter: (req, file, cb) => {
     if (file.mimetype.startsWith('audio/')) {
       cb(null, true);

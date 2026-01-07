@@ -10,7 +10,7 @@ const GUIDED_CONTENT_CONFIG = {
     bucket: 'guided-audio',
     mediaTypes: ['audio'],
     supportsGender: true,
-    maxFileSize: 50 * 1024 * 1024, // 50MB
+    maxFileSize: 200 * 1024 * 1024, // 200MB
     maxFiles: 10,
     allowedMimeTypes: ['audio/*']
   },
@@ -18,7 +18,7 @@ const GUIDED_CONTENT_CONFIG = {
     bucket: 'guided-meditation',
     mediaTypes: ['audio'],
     supportsGender: true,
-    maxFileSize: 50 * 1024 * 1024, // 50MB
+    maxFileSize: 200 * 1024 * 1024, // 200MB
     maxFiles: 10,
     allowedMimeTypes: ['audio/*']
   },
@@ -26,7 +26,7 @@ const GUIDED_CONTENT_CONFIG = {
     bucket: 'guided-visualization',
     mediaTypes: ['audio', 'youtube'],
     supportsGender: true,
-    maxFileSize: 50 * 1024 * 1024, // 50MB
+    maxFileSize: 200 * 1024 * 1024, // 200MB
     maxFiles: 10,
     allowedMimeTypes: ['audio/*']
   }
