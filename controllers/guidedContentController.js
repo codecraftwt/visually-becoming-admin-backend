@@ -147,6 +147,11 @@ exports.getContentByCategory = async (req, res, next) => {
 
 /**
  * Create a new content item
+ * 
+ * Supports two modes:
+ * 1. Direct client uploads: Files are pre-uploaded to Firebase Storage, 
+ *    and this endpoint receives metadata with file URLs (JSON body)
+ * 2. Backend uploads: Files are sent via FormData and uploaded by backend (legacy)
  */
 exports.createContent = async (req, res, next) => {
   try {
@@ -166,8 +171,15 @@ exports.createContent = async (req, res, next) => {
     // Handle media files
     const media = [];
     
-    // Handle uploaded files (audio files)
-    if (req.files && req.files.length > 0) {
+    // MODE 1: Direct client uploads - files already uploaded, media array provided
+    if (req.body.media && Array.isArray(req.body.media)) {
+      // Files are already uploaded to Firebase Storage by the client
+      // Just use the media array as-is
+      media.push(...req.body.media);
+    }
+    // MODE 2: Backend uploads - files sent via FormData (legacy support)
+    else if (req.files && req.files.length > 0) {
+      // Handle uploaded files (audio files) - legacy mode
       for (let i = 0; i < req.files.length; i++) {
         const file = req.files[i];
         const fileUrl = await firebase.uploadContentFile(file, file.originalname, contentType);
@@ -183,8 +195,8 @@ exports.createContent = async (req, res, next) => {
       }
     }
 
-    // Handle YouTube URLs (for visualization type)
-    if (req.body.youtubeUrls) {
+    // Handle YouTube URLs (for FormData requests - legacy)
+    if (req.body.youtubeUrls && !req.body.media) {
       const youtubeUrls = Array.isArray(req.body.youtubeUrls) 
         ? req.body.youtubeUrls 
         : [req.body.youtubeUrls];
@@ -204,11 +216,6 @@ exports.createContent = async (req, res, next) => {
       }
     }
 
-    // Handle existing media array (for JSON requests)
-    if (req.body.media && Array.isArray(req.body.media)) {
-      media.push(...req.body.media);
-    }
-
     contentData.media = media;
     contentData.createdAt = new Date().toISOString();
     contentData.updatedAt = new Date().toISOString();
@@ -222,6 +229,11 @@ exports.createContent = async (req, res, next) => {
 
 /**
  * Update a content item
+ * 
+ * Supports two modes:
+ * 1. Direct client uploads: Files are pre-uploaded to Firebase Storage, 
+ *    and this endpoint receives metadata with file URLs (JSON body)
+ * 2. Backend uploads: Files are sent via FormData and uploaded by backend (legacy)
  */
 exports.updateContent = async (req, res, next) => {
   try {
@@ -235,82 +247,108 @@ exports.updateContent = async (req, res, next) => {
     if (updateData.isPremium === "true") updateData.isPremium = true;
     if (updateData.isPremium === "false") updateData.isPremium = false;
 
-    // Parse existing media data
-    let existingMedia = [];
-    if (req.body.existingMedia) {
-      const existingMediaData = Array.isArray(req.body.existingMedia)
-        ? req.body.existingMedia
-        : [req.body.existingMedia];
-
-      existingMedia = existingMediaData.map(item => {
-        try {
-          return typeof item === 'string' ? JSON.parse(item) : item;
-        } catch (e) {
-          return item;
-        }
-      });
-    }
-
-    // Handle new file uploads
-    const newMedia = [];
-    if (req.files && req.files.length > 0) {
-      const existingMediaCount = existingMedia.length;
-      for (let i = 0; i < req.files.length; i++) {
-        const file = req.files[i];
-        const fileUrl = await firebase.uploadContentFile(file, file.originalname, contentType);
-        const genderIndex = existingMediaCount + i;
-        const gender = req.body.genders && req.body.genders[genderIndex]
-          ? (req.body.genders[genderIndex] === 'male' ? 'm' : 'f')
-          : (config.supportsGender ? 'm' : undefined);
+    // MODE 1: Direct client uploads - media array provided with pre-uploaded URLs
+    if (req.body.media && Array.isArray(req.body.media)) {
+      // Files are already uploaded to Firebase Storage by the client
+      // Handle deleted media indices if provided
+      if (req.body.deletedMediaIndices && Array.isArray(req.body.deletedMediaIndices)) {
+        // Get current content to find URLs of deleted media
+        const contentItems = await firebase.getAll(CONTENT_COLLECTION);
+        const currentItem = contentItems.find(item => item.id === id);
         
-        newMedia.push({
-          type: 'audio',
-          url: fileUrl,
-          ...(gender && { gender })
-        });
-      }
-    }
-
-    // Handle YouTube URLs
-    if (req.body.youtubeUrls) {
-      const youtubeUrls = Array.isArray(req.body.youtubeUrls) 
-        ? req.body.youtubeUrls 
-        : [req.body.youtubeUrls];
-      
-      for (const youtubeUrl of youtubeUrls) {
-        if (youtubeUrl) {
-          const videoId = firebase.extractYouTubeId(youtubeUrl);
-          if (videoId) {
-            newMedia.push({
-              type: 'youtube',
-              url: youtubeUrl,
-              videoId: videoId,
-              thumbnailUrl: firebase.getYouTubeThumbnail(videoId)
-            });
+        if (currentItem && currentItem.media) {
+          // Delete files from storage for deleted media
+          for (const index of req.body.deletedMediaIndices) {
+            if (currentItem.media[index] && currentItem.media[index].type === 'audio') {
+              await firebase.deleteContentFile(currentItem.media[index].url, contentType);
+            }
           }
         }
       }
-    }
-
-    // Handle deleted media indices
-    if (req.body.deletedMediaIndices) {
-      const deletedIndices = typeof req.body.deletedMediaIndices === 'string'
-        ? JSON.parse(req.body.deletedMediaIndices)
-        : req.body.deletedMediaIndices;
       
-      // Delete files from storage for deleted media
-      for (const index of deletedIndices) {
-        if (existingMedia[index] && existingMedia[index].type === 'audio') {
-          await firebase.deleteContentFile(existingMedia[index].url, contentType);
+      // Use the provided media array directly
+      updateData.media = req.body.media;
+    }
+    // MODE 2: Backend uploads - files sent via FormData (legacy support)
+    else {
+      // Parse existing media data
+      let existingMedia = [];
+      if (req.body.existingMedia) {
+        const existingMediaData = Array.isArray(req.body.existingMedia)
+          ? req.body.existingMedia
+          : [req.body.existingMedia];
+
+        existingMedia = existingMediaData.map(item => {
+          try {
+            return typeof item === 'string' ? JSON.parse(item) : item;
+          } catch (e) {
+            return item;
+          }
+        });
+      }
+
+      // Handle new file uploads
+      const newMedia = [];
+      if (req.files && req.files.length > 0) {
+        const existingMediaCount = existingMedia.length;
+        for (let i = 0; i < req.files.length; i++) {
+          const file = req.files[i];
+          const fileUrl = await firebase.uploadContentFile(file, file.originalname, contentType);
+          const genderIndex = existingMediaCount + i;
+          const gender = req.body.genders && req.body.genders[genderIndex]
+            ? (req.body.genders[genderIndex] === 'male' ? 'm' : 'f')
+            : (config.supportsGender ? 'm' : undefined);
+          
+          newMedia.push({
+            type: 'audio',
+            url: fileUrl,
+            ...(gender && { gender })
+          });
         }
       }
-      
-      // Remove deleted items from array
-      existingMedia = existingMedia.filter((_, index) => !deletedIndices.includes(index));
+
+      // Handle YouTube URLs
+      if (req.body.youtubeUrls) {
+        const youtubeUrls = Array.isArray(req.body.youtubeUrls) 
+          ? req.body.youtubeUrls 
+          : [req.body.youtubeUrls];
+        
+        for (const youtubeUrl of youtubeUrls) {
+          if (youtubeUrl) {
+            const videoId = firebase.extractYouTubeId(youtubeUrl);
+            if (videoId) {
+              newMedia.push({
+                type: 'youtube',
+                url: youtubeUrl,
+                videoId: videoId,
+                thumbnailUrl: firebase.getYouTubeThumbnail(videoId)
+              });
+            }
+          }
+        }
+      }
+
+      // Handle deleted media indices
+      if (req.body.deletedMediaIndices) {
+        const deletedIndices = typeof req.body.deletedMediaIndices === 'string'
+          ? JSON.parse(req.body.deletedMediaIndices)
+          : req.body.deletedMediaIndices;
+        
+        // Delete files from storage for deleted media
+        for (const index of deletedIndices) {
+          if (existingMedia[index] && existingMedia[index].type === 'audio') {
+            await firebase.deleteContentFile(existingMedia[index].url, contentType);
+          }
+        }
+        
+        // Remove deleted items from array
+        existingMedia = existingMedia.filter((_, index) => !deletedIndices.includes(index));
+      }
+
+      // Combine existing and new media
+      updateData.media = [...existingMedia, ...newMedia];
     }
 
-    // Combine existing and new media
-    updateData.media = [...existingMedia, ...newMedia];
     updateData.updatedAt = new Date().toISOString();
 
     const updated = await firebase.update(CONTENT_COLLECTION, id, updateData);
