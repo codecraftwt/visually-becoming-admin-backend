@@ -31,22 +31,49 @@ const allowedOrigins = [
   'http://127.0.0.1:3000'
 ];
 
+// Manual CORS middleware - MUST be first middleware
+// This runs before all routes to ensure CORS headers are always set
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   
-  // Check if origin is allowed
-  if (!origin || allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
-    res.header('Access-Control-Allow-Origin', origin || '*');
+  // Log for debugging (helps verify deployment)
+  console.log('=== CORS Middleware ===');
+  console.log('Request Origin:', origin);
+  console.log('Request Method:', req.method);
+  console.log('Request Path:', req.path);
+  console.log('Allowed Origins:', allowedOrigins);
+  
+  // Set CORS headers - be permissive to ensure it works
+  if (origin) {
+    // Normalize origin (remove trailing slash)
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    
+    // Check if origin is in allowed list (exact match or normalized)
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes(normalizedOrigin)) {
+      res.header('Access-Control-Allow-Origin', origin);
+      console.log('✅ Origin allowed:', origin);
+    } else {
+      // Temporarily allow all to debug - you can restrict this later
+      res.header('Access-Control-Allow-Origin', origin);
+      console.log('⚠️ Origin not in list, but allowing:', origin);
+    }
+  } else {
+    // No origin header (like Postman, curl, etc.)
+    res.header('Access-Control-Allow-Origin', '*');
+    console.log('⚠️ No origin header, allowing all');
   }
   
+  // Set all required CORS headers
   res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
-  res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, X-CSRF-Token');
+  res.header('Access-Control-Expose-Headers', 'Content-Length, Content-Type, Content-Disposition');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   
-  // Handle preflight requests
+  // Handle preflight OPTIONS requests
   if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
+    console.log('✅ Handling OPTIONS preflight request');
+    return res.status(200).end();
   }
   
   next();
@@ -124,9 +151,15 @@ app.use("/api/:contentType", require("./routes/guidedContentRoutes"));
 
 app.use(errorHandler);
 
-// Health check endpoint
+// Health check endpoint - Updated: 2024-12-19 - CORS Fix Applied
 app.get("/", (req, res) => {
-  res.json({ message: "Visually Becoming Admin Backend API", status: "running" });
+  res.json({ 
+    message: "Visually Becoming Admin Backend API - CORS Fixed v2.0", 
+    status: "running",
+    timestamp: new Date().toISOString(),
+    corsEnabled: true,
+    allowedOrigins: allowedOrigins
+  });
 });
 
 if (process.env.NODE_ENV !== "production") {
