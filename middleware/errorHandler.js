@@ -1,5 +1,11 @@
 exports.errorHandler = (err, req, res, next) => {
-  console.error("🔥 Error:", err.message);
+  console.error("🔥 Error:", {
+    message: err.message,
+    stack: err.stack,
+    path: req.path,
+    method: req.method,
+    statusCode: err.statusCode || err.status || 500
+  });
   
   // Ensure CORS headers are set even on errors
   const origin = req.headers.origin;
@@ -17,5 +23,14 @@ exports.errorHandler = (err, req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true');
   
   const statusCode = err.statusCode || err.status || 500;
-  res.status(statusCode).json({ error: err.message || "Internal Server Error" });
+  
+  // In production, don't expose full error details
+  const errorMessage = process.env.NODE_ENV === 'production' 
+    ? (err.message || "Internal Server Error")
+    : err.message || "Internal Server Error";
+  
+  res.status(statusCode).json({ 
+    error: errorMessage,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+  });
 };

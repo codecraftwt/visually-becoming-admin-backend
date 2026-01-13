@@ -18,9 +18,16 @@ const upload = multer({
 
 exports.getGuidedAudio = async (req, res, next) => {
   try {
+    console.log(`[getGuidedAudio] Fetching all guided audio from collection: ${COLLECTION}`);
     const data = await firebase.getAll(COLLECTION);
+    console.log(`[getGuidedAudio] Successfully fetched ${data.length} items`);
     res.json(data);
   } catch (err) {
+    console.error(`[getGuidedAudio] Error fetching guided audio:`, {
+      message: err.message,
+      stack: err.stack,
+      collection: COLLECTION
+    });
     next(err);
   }
 };
@@ -135,41 +142,66 @@ exports.updateGuidedAudioWithFile = async (req, res, next) => {
     if (updateData.isPremium === "true") updateData.isPremium = true;
     if (updateData.isPremium === "false") updateData.isPremium = false;
 
-    // Parse existing audio data from the request
-    let existingAudio = [];
-    if (req.body.existingAudio) {
-      // Handle both single object and array of objects
-      const existingAudioData = Array.isArray(req.body.existingAudio)
-        ? req.body.existingAudio
-        : [req.body.existingAudio];
-
-      existingAudio = existingAudioData.map(item => {
-        try {
-          return typeof item === 'string' ? JSON.parse(item) : item;
-        } catch (e) {
-          return item;
+    // MODE 1: Direct client uploads - audio array provided with pre-uploaded URLs (JSON mode)
+    if (req.body.audio && Array.isArray(req.body.audio)) {
+      // Files are already uploaded to Firebase Storage by the client
+      // Handle deleted audio indices if provided
+      if (req.body.deletedAudioIndices && Array.isArray(req.body.deletedAudioIndices)) {
+        // Get current content to find URLs of deleted audio
+        const audioItems = await firebase.getAll(COLLECTION);
+        const currentItem = audioItems.find(item => item.id === id);
+        
+        if (currentItem && currentItem.audio) {
+          // Delete files from storage for deleted audio
+          for (const index of req.body.deletedAudioIndices) {
+            if (currentItem.audio[index] && currentItem.audio[index].audioUrl) {
+              await firebase.deleteAudioFile(currentItem.audio[index].audioUrl);
+            }
+          }
         }
-      });
+      }
+      
+      // Use the provided audio array directly
+      updateData.audio = req.body.audio;
     }
+    // MODE 2: Backend uploads - files sent via FormData (legacy support)
+    else {
+      // Parse existing audio data from the request
+      let existingAudio = [];
+      if (req.body.existingAudio) {
+        // Handle both single object and array of objects
+        const existingAudioData = Array.isArray(req.body.existingAudio)
+          ? req.body.existingAudio
+          : [req.body.existingAudio];
 
-    // Handle new audio files if provided
-    let newAudioFiles = [];
-    if (req.files && req.files.length > 0) {
-      const existingAudioCount = existingAudio.length;
-      for (let i = 0; i < req.files.length; i++) {
-        const file = req.files[i];
-        const audioUrl = await firebase.uploadAudioFile(file, file.originalname);
-        const genderIndex = existingAudioCount + i;
-        const gender = req.body.genders ? req.body.genders[genderIndex] : 'male';
-        newAudioFiles.push({
-          audioUrl,
-          gender
+        existingAudio = existingAudioData.map(item => {
+          try {
+            return typeof item === 'string' ? JSON.parse(item) : item;
+          } catch (e) {
+            return item;
+          }
         });
       }
-    }
 
-    // Combine existing audio (with updated properties) and new uploaded files
-    updateData.audio = [...existingAudio, ...newAudioFiles];
+      // Handle new audio files if provided
+      let newAudioFiles = [];
+      if (req.files && req.files.length > 0) {
+        const existingAudioCount = existingAudio.length;
+        for (let i = 0; i < req.files.length; i++) {
+          const file = req.files[i];
+          const audioUrl = await firebase.uploadAudioFile(file, file.originalname);
+          const genderIndex = existingAudioCount + i;
+          const gender = req.body.genders ? req.body.genders[genderIndex] : 'male';
+          newAudioFiles.push({
+            audioUrl,
+            gender
+          });
+        }
+      }
+
+      // Combine existing audio (with updated properties) and new uploaded files
+      updateData.audio = [...existingAudio, ...newAudioFiles];
+    }
 
     const updated = await firebase.update(COLLECTION, id, updateData);
     res.json(updated);

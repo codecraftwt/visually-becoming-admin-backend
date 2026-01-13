@@ -30,13 +30,26 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
 }
 
 if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    storageBucket: firebaseConfig.storageBucket,
-  });
+  try {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount),
+      storageBucket: firebaseConfig.storageBucket,
+    });
+    console.log('[Firebase] Successfully initialized Firebase Admin');
+  } catch (error) {
+    console.error('[Firebase] Error initializing Firebase Admin:', error.message);
+    throw new Error(`Firebase initialization failed: ${error.message}`);
+  }
 }
 
-const db = admin.firestore();
-const bucket = admin.storage().bucket();
+let db, bucket;
+try {
+  db = admin.firestore();
+  bucket = admin.storage().bucket();
+  console.log('[Firebase] Firestore and Storage initialized');
+} catch (error) {
+  console.error('[Firebase] Error initializing Firestore/Storage:', error.message);
+  throw new Error(`Firebase services initialization failed: ${error.message}`);
+}
 
 module.exports = { admin, db, bucket };

@@ -35,8 +35,23 @@ const { db, bucket } = require("../config/firebase");
 
 // Generic Firebase CRUD helpers
 exports.getAll = async (collection) => {
-  const snapshot = await db.collection(collection).get();
-  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  try {
+    if (!db) {
+      throw new Error('Firebase database not initialized. Check FIREBASE_SERVICE_ACCOUNT_KEY environment variable.');
+    }
+    if (!collection) {
+      throw new Error('Collection name is required');
+    }
+    const snapshot = await db.collection(collection).get();
+    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  } catch (error) {
+    console.error(`[firebaseService.getAll] Error fetching from collection ${collection}:`, {
+      message: error.message,
+      stack: error.stack,
+      collection: collection
+    });
+    throw error;
+  }
 };
 
 exports.create = async (collection, data) => {
