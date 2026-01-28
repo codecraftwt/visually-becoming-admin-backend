@@ -119,6 +119,7 @@ let idCounter = 1;
 
 
 // Routes
+app.use("/api/admin-auth", require("./routes/adminAuthRoutes"));
 app.use("/api/categories", require("./routes/categoryRoutes"));
 app.use("/api/audio-categories", require("./routes/audioCategoryRoutes"));
 app.use("/api/daily-affirmations", require("./routes/dailyAffirmationRoutes"));

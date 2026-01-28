@@ -4,8 +4,9 @@ const admin = require("firebase-admin");
 
 // Firebase project configuration (server-side only needs projectId and storageBucket)
 const firebaseConfig = {
-  projectId: "affirm-2722c",
-  storageBucket: "affirm-2722c.appspot.com",
+  projectId: process.env.FIREBASE_PROJECT_ID || "affirm-2722c",
+  storageBucket:
+    process.env.FIREBASE_STORAGE_BUCKET || "affirm-2722c.appspot.com",
 };
 
 // Initialize Firebase Admin with environment variables or file
@@ -19,12 +20,28 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
     console.error("Error parsing FIREBASE_SERVICE_ACCOUNT_KEY:", error.message);
     throw new Error("Invalid FIREBASE_SERVICE_ACCOUNT_KEY environment variable");
   }
+} else if (
+  process.env.FIREBASE_PROJECT_ID &&
+  process.env.FIREBASE_CLIENT_EMAIL &&
+  process.env.FIREBASE_PRIVATE_KEY
+) {
+  // Use individual env vars (common in .env files)
+  // NOTE: private keys are often stored with literal "\n" sequences; convert them.
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n");
+
+  serviceAccount = {
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    privateKey,
+  };
 } else {
   // Fallback to file (for local development)
   try {
     serviceAccount = require("../serviceAccountKey.json");
   } catch (error) {
-    console.error("Firebase service account key not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY environment variable or ensure serviceAccountKey.json exists for local development.");
+    console.error(
+      "Firebase service account key not found. Please set FIREBASE_SERVICE_ACCOUNT_KEY, or set FIREBASE_PROJECT_ID/FIREBASE_CLIENT_EMAIL/FIREBASE_PRIVATE_KEY, or ensure serviceAccountKey.json exists for local development."
+    );
     throw error;
   }
 }
